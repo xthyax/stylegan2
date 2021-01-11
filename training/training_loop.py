@@ -6,6 +6,7 @@
 
 """Main training script."""
 
+import os
 import numpy as np
 import tensorflow as tf
 import dnnlib
@@ -121,18 +122,22 @@ def training_loop(
     G_reg_interval          = 4,        # How often the perform regularization for G? Ignored if lazy_regularization=False.
     D_reg_interval          = 16,       # How often the perform regularization for D? Ignored if lazy_regularization=False.
     reset_opt_for_new_lod   = True,     # Reset optimizer internal state (e.g. Adam moments) when new layers are introduced?
-    total_kimg              = 25000,    # Total length of the training, measured in thousands of real images.
+    total_kimg              = 75000,    # Total length of the training, measured in thousands of real images.
     mirror_augment          = False,    # Enable mirror augment?
     drange_net              = [-1,1],   # Dynamic range used when feeding image data to the networks.
-    image_snapshot_ticks    = 50,       # How often to save image snapshots? None = only save 'reals.png' and 'fakes-init.png'.
-    network_snapshot_ticks  = 50,       # How often to save network snapshots? None = only save 'networks-final.pkl'.
+    image_snapshot_ticks    = 1000,       # How often to save image snapshots? None = only save 'reals.png' and 'fakes-init.png'.
+    network_snapshot_ticks  = 1000,       # How often to save network snapshots? None = only save 'networks-final.pkl'.
     save_tf_graph           = False,    # Include full TensorFlow computation graph in the tfevents file?
     save_weight_histograms  = False,    # Include weight histograms in the tfevents file?
     resume_pkl              = None,     # Network pickle to resume training from, None = train from scratch.
     resume_kimg             = 0.0,      # Assumed training progress at the beginning. Affects reporting and training schedule.
     resume_time             = 0.0,      # Assumed wallclock time at the beginning. Affects reporting.
+    logs                    = r"D:\KLA\Jhyn\_Model\StyleGAN2\log_1",
     resume_with_new_nets    = False):   # Construct new networks according to G_args and D_args before resuming training?
 
+    os.makedirs(logs, exist_ok=True)
+    sample_logs = os.path.join(logs,"samples")
+    os.makedirs(sample_logs, exist_ok=True)
     # Initialize dnnlib and TensorFlow.
     tflib.init_tf(tf_config)
     num_gpus = dnnlib.submit_config.num_gpus
@@ -249,6 +254,7 @@ def training_loop(
 
     print('Initializing logs...')
     summary_log = tf.summary.FileWriter(dnnlib.make_run_dir_path())
+    # summary_log = tf.summary.FileWriter(logs)
     if save_tf_graph:
         summary_log.add_graph(tf.get_default_graph())
     if save_weight_histograms:
@@ -333,13 +339,15 @@ def training_loop(
 
             # Save snapshots.
             if image_snapshot_ticks is not None and (cur_tick % image_snapshot_ticks == 0 or done):
-                grid_fakes = Gs.run(grid_latents, grid_labels, is_validation=True, minibatch_size=sched.minibatch_gpu)
+                # grid_fakes = Gs.run(grid_latents, grid_labels, is_validation=True, minibatch_size=sched.minibatch_gpu)
                 misc.save_image_grid(grid_fakes, dnnlib.make_run_dir_path('fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
+                # misc.save_image_grid(grid_fakes, os.path.join( sample_logs , 'fakes%06d.png' % (cur_nimg // 1000)), drange=drange_net, grid_size=grid_size)
             if network_snapshot_ticks is not None and (cur_tick % network_snapshot_ticks == 0 or done):
                 pkl = dnnlib.make_run_dir_path('network-snapshot-%06d.pkl' % (cur_nimg // 1000))
+                # pkl = os.path.join(logs,'network-snapshot-%06d.pkl' % (cur_nimg // 1000))
                 misc.save_pkl((G, D, Gs), pkl)
                 metrics.run(pkl, run_dir=dnnlib.make_run_dir_path(), data_dir=dnnlib.convert_path(data_dir), num_gpus=num_gpus, tf_config=tf_config)
-
+                # metrics.run(pkl, run_dir=logs, data_dir=dnnlib.convert_path(data_dir), num_gpus=num_gpus, tf_config=tf_config)
             # Update summaries and RunContext.
             metrics.update_autosummaries()
             tflib.autosummary.save_summaries(summary_log, cur_nimg)
@@ -348,6 +356,7 @@ def training_loop(
 
     # Save final snapshot.
     misc.save_pkl((G, D, Gs), dnnlib.make_run_dir_path('network-final.pkl'))
+    # misc.save_pkl((G, D, Gs), os.path.join(logs,'network-final.pkl'))
 
     # All done.
     summary_log.close()

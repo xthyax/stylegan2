@@ -28,6 +28,8 @@ compiler_bindir_search_path = [
     'C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.14.26428/bin/Hostx64/x64',
     'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/Hostx64/x64',
     'C:/Program Files (x86)/Microsoft Visual Studio 14.0/vc/bin',
+    r"D:\KLA\Jhyn\VisualStudio2015\VC\bin",
+    r"D:\KLA\Jhyn\VisualStudio2015\Team Tools\Performance Tools\x64"
 ]
 
 #----------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import argparse
 import copy
 import os
 import sys
-
+os.environ
 import dnnlib
 from dnnlib import EasyDict
 
@@ -31,6 +31,45 @@ _valid_configs = [
     'config-e-Gskip-Dorig',   'config-e-Gskip-Dresnet',   'config-e-Gskip-Dskip',
 ]
 
+def set_GPU(num_of_GPUs):
+    try:
+        from gpuinfo import GPUInfo
+        import numpy as np
+        current_memory_gpu = GPUInfo.gpu_usage()[1]
+        list_available_gpu = np.where(np.array(current_memory_gpu) < 1500)[0].astype('str').tolist()
+        current_available_gpu = ",".join(list_available_gpu)
+        # print(list_available_gpu)
+        # print(current_available_gpu)
+        # print(num_of_GPUs)
+    except:
+        print("[INFO] No GPU found")
+        current_available_gpu = "-1"
+        list_available_gpu = []
+        
+    if len(list_available_gpu) < num_of_GPUs and len(list_available_gpu) > 0:
+        print("==============Warning==============")
+        print("Your process had been terminated")
+        print("Please decrease number of gpus you using")
+        print(f"number of Devices available:\t{len(list_available_gpu)} gpu(s)")
+        print(f"number of Device will use:\t{num_of_GPUs} gpu(s)")
+        sys.exit()
+
+    elif len(list_available_gpu) > num_of_GPUs and num_of_GPUs != 0:
+        redundant_gpu = len(list_available_gpu) - num_of_GPUs
+        list_available_gpu = list_available_gpu[redundant_gpu:]
+        # list_available_gpu = list_available_gpu[:num_of_GPUs]
+        current_available_gpu = ",".join(list_available_gpu)
+
+    elif num_of_GPUs == 0 or len(list_available_gpu)==0:
+        current_available_gpu = "-1"
+        if len(list_available_gpu)==0:
+            print("[INFO] No GPU found")
+
+    print("[INFO] ***********************************************")
+    print(f"[INFO] You are using GPU(s): {current_available_gpu}")
+    print("[INFO] ***********************************************")
+    os.environ["CUDA_VISIBLE_DEVICES"] = current_available_gpu
+
 #----------------------------------------------------------------------------
 
 def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, mirror_augment, metrics):
@@ -51,8 +90,8 @@ def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, m
     train.mirror_augment = mirror_augment
     train.image_snapshot_ticks = train.network_snapshot_ticks = 10
     sched.G_lrate_base = sched.D_lrate_base = 0.002
-    sched.minibatch_size_base = 32
-    sched.minibatch_gpu_base = 4
+    sched.minibatch_size_base = 1
+    sched.minibatch_gpu_base = 1
     D_loss.gamma = 10
     metrics = [metric_defaults[x] for x in metrics]
     desc = 'stylegan2'
@@ -86,9 +125,9 @@ def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, m
         sched.lod_initial_resolution = 8
         sched.G_lrate_base = sched.D_lrate_base = 0.001
         sched.G_lrate_dict = sched.D_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
-        sched.minibatch_size_base = 32 # (default)
+        sched.minibatch_size_base = 8 # (default)
         sched.minibatch_size_dict = {8: 256, 16: 128, 32: 64, 64: 32}
-        sched.minibatch_gpu_base = 4 # (default)
+        sched.minibatch_gpu_base = 2 # (default)
         sched.minibatch_gpu_dict = {8: 32, 16: 16, 32: 8, 64: 4}
         G.synthesis_func = 'G_synthesis_stylegan_revised'
         D.func_name = 'training.networks_stylegan2.D_stylegan'
@@ -163,8 +202,8 @@ def main():
     parser.add_argument('--data-dir', help='Dataset root directory', required=True)
     parser.add_argument('--dataset', help='Training dataset', required=True)
     parser.add_argument('--config', help='Training config (default: %(default)s)', default='config-f', required=True, dest='config_id', metavar='CONFIG')
-    parser.add_argument('--num-gpus', help='Number of GPUs (default: %(default)s)', default=1, type=int, metavar='N')
-    parser.add_argument('--total-kimg', help='Training length in thousands of images (default: %(default)s)', metavar='KIMG', default=25000, type=int)
+    parser.add_argument('--num-gpus', help='Number of GPUs (default: %(default)s)', default=4, type=int, metavar='N')
+    parser.add_argument('--total-kimg', help='Training length in thousands of images (default: %(default)s)', metavar='KIMG', default=75000, type=int)
     parser.add_argument('--gamma', help='R1 regularization weight (default is config dependent)', default=None, type=float)
     parser.add_argument('--mirror-augment', help='Mirror augment (default: %(default)s)', default=False, metavar='BOOL', type=_str_to_bool)
     parser.add_argument('--metrics', help='Comma-separated list of metrics or "none" (default: %(default)s)', default='fid50k', type=_parse_comma_sep)
@@ -184,6 +223,7 @@ def main():
             print ('Error: unknown metric \'%s\'' % metric)
             sys.exit(1)
 
+    set_GPU(vars(args)['num_gpus'])
     run(**vars(args))
 
 #----------------------------------------------------------------------------

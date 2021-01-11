@@ -50,8 +50,10 @@ class TFRecordDataset:
         self._cur_lod           = -1
 
         # List tfrecords files and inspect their shapes.
-        assert os.path.isdir(self.tfrecord_dir)
+        print(f"Check tfrecord_dir: {self.tfrecord_dir}")
+        # assert os.path.isdir(self.tfrecord_dir)
         tfr_files = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.tfrecords')))
+        print(tfr_files)
         assert len(tfr_files) >= 1
         tfr_shapes = []
         for tfr_file in tfr_files:
@@ -179,12 +181,14 @@ class TFRecordDataset:
 # Helper func for constructing a dataset object using the given options.
 
 def load_dataset(class_name=None, data_dir=None, verbose=False, **kwargs):
+    print(f"Checking data_dir: {data_dir}")
     kwargs = dict(kwargs)
     if 'tfrecord_dir' in kwargs:
         if class_name is None:
             class_name = __name__ + '.TFRecordDataset'
         if data_dir is not None:
-            kwargs['tfrecord_dir'] = os.path.join(data_dir, kwargs['tfrecord_dir'])
+            # kwargs['tfrecord_dir'] = os.path.join(data_dir, kwargs['tfrecord_dir'])
+            kwargs['tfrecord_dir'] = os.path.join(data_dir)
 
     assert class_name is not None
     if verbose:
